@@ -111,7 +111,7 @@ if uploaded_file:
     # Run Button
     col1, col2, col3 = st.columns([1,2,1])
     with col2:
-        run_model = st.button("Run Model")
+        run_model = st.button("Submit")
 
 
     # ----------------------------------------------------
@@ -229,3 +229,4 @@ if uploaded_file:
             fig, ax = plt.subplots(figsize=(8,6))
             sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=ax)
             st.pyplot(fig)
+
