@@ -5,7 +5,7 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
-from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
+from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier, export_graphviz
 from sklearn.svm import SVR, SVC
 from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier
 from sklearn.cluster import KMeans, AgglomerativeClustering
@@ -13,8 +13,8 @@ from sklearn.cluster import KMeans, AgglomerativeClustering
 from sklearn.metrics import accuracy_score, mean_squared_error, r2_score, confusion_matrix
 import matplotlib.pyplot as plt
 import seaborn as sns
-
 from sklearn.preprocessing import LabelEncoder
+import graphviz
 
 
 st.set_page_config(page_title="streamlit", layout="wide")
@@ -26,6 +26,9 @@ model_type = st.sidebar.selectbox(
     ["Regression", "Classification", "Clustering"]
 )
 
+# -----------------------------------------
+# SIDEBAR OPTIONS WITH MAX DEPTH
+# -----------------------------------------
 if model_type == "Regression":
     algorithm = st.sidebar.selectbox(
         "Regression Algorithm",
@@ -35,7 +38,7 @@ if model_type == "Regression":
     test_size_display = st.sidebar.slider("Test Size (%)", 10, 50)
     test_size = test_size_display / 100
 
-    if algorithm == "Decision Tree Regressor":
+    if algorithm in ["Decision Tree Regressor", "Random Forest Regressor"]:
         max_depth = st.sidebar.number_input("Max Depth", 1, 50, 5)
     else:
         max_depth = None
@@ -49,7 +52,7 @@ elif model_type == "Classification":
     test_size_display = st.sidebar.slider("Test Size (%)", 10, 50)
     test_size = test_size_display / 100
 
-    if algorithm == "Decision Tree Classifier":
+    if algorithm in ["Decision Tree Classifier", "Random Forest Classifier"]:
         max_depth = st.sidebar.number_input("Max Depth", 1, 50, 5)
     else:
         max_depth = None
@@ -110,6 +113,9 @@ if uploaded_file:
 
         X = df[feature_cols]
 
+        # ====================================================
+        # CLUSTERING
+        # ====================================================
         if model_type == "Clustering":
 
             if algorithm == "K-Means Clustering":
@@ -129,6 +135,9 @@ if uploaded_file:
             else:
                 st.warning("Select at least 2 features to plot clusters.")
 
+        # ====================================================
+        # REGRESSION
+        # ====================================================
         elif model_type == "Regression":
 
             y = df[label_col]
@@ -139,12 +148,16 @@ if uploaded_file:
 
             if algorithm == "Linear Regression":
                 model = LinearRegression()
+
             elif algorithm == "Random Forest Regressor":
-                model = RandomForestRegressor()
+                model = RandomForestRegressor(max_depth=max_depth)
+
             elif algorithm == "Support Vector Regressor":
                 model = SVR()
+
             elif algorithm == "Decision Tree Regressor":
                 model = DecisionTreeRegressor(max_depth=max_depth)
+
             else:
                 model = KNeighborsRegressor()
 
@@ -164,6 +177,34 @@ if uploaded_file:
             ax.set_ylabel("Predicted")
             st.pyplot(fig)
 
+            # TREE VISUALIZATION FOR DECISION TREE REGRESSOR
+            if algorithm == "Decision Tree Regressor":
+                dot = export_graphviz(
+                    model,
+                    out_file=None,
+                    feature_names=feature_cols,
+                    filled=True,
+                    rounded=True,
+                    special_characters=True
+                )
+                st.subheader("Decision Tree Visualization")
+                st.graphviz_chart(dot)
+
+            # FEATURE IMPORTANCE FOR RANDOM FOREST REGRESSOR
+            if algorithm == "Random Forest Regressor":
+                importances = model.feature_importances_
+                sorted_idx = np.argsort(importances)[::-1]
+
+                fig, ax = plt.subplots(figsize=(10,6))
+                ax.bar([feature_cols[i] for i in sorted_idx], importances[sorted_idx])
+                ax.set_title("Random Forest Feature Importance")
+                ax.set_ylabel("Importance Score")
+                plt.xticks(rotation=45)
+                st.pyplot(fig)
+
+        # ====================================================
+        # CLASSIFICATION
+        # ====================================================
         else:
 
             y = df[label_col]
@@ -182,13 +223,7 @@ if uploaded_file:
                         if hasattr(y_binned, "astype"):
                             y_binned = y_binned.astype(int)
                     y = pd.Series(y_binned, index=y.index)
-                    st.info(f"Label was continuous ({unique_vals} unique values) — converted to {y.nunique()} classes using qcut.")
-
-                    unique_sorted = sorted(y.unique())
-                    mapping = {val: idx for idx, val in enumerate(unique_sorted)}
-                    y_mapped = y.map(mapping)
-                    y = pd.Series(y_mapped, index=y.index)
-                    st.info(f"Label had {unique_vals} unique values — using direct mapping to classes: {mapping}.")
+                    st.info("Label converted into bins for classification.")
 
             if y.dtype == 'object' or str(y.dtype).startswith('category'):
                 y = LabelEncoder().fit_transform(y.astype(str))
@@ -204,12 +239,16 @@ if uploaded_file:
 
             if algorithm == "Logistic Regression":
                 model = LogisticRegression(max_iter=300)
+
             elif algorithm == "Random Forest Classifier":
-                model = RandomForestClassifier()
+                model = RandomForestClassifier(max_depth=max_depth)
+
             elif algorithm == "Support Vector Classifier":
                 model = SVC()
+
             elif algorithm == "Decision Tree Classifier":
                 model = DecisionTreeClassifier(max_depth=max_depth)
+
             else:
                 model = KNeighborsClassifier()
 
@@ -224,3 +263,29 @@ if uploaded_file:
             fig, ax = plt.subplots(figsize=(8,6))
             sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=ax)
             st.pyplot(fig)
+
+            # DECISION TREE VISUALIZATION
+            if algorithm == "Decision Tree Classifier":
+                dot = export_graphviz(
+                    model,
+                    out_file=None,
+                    feature_names=feature_cols,
+                    class_names=True,
+                    filled=True,
+                    rounded=True,
+                    special_characters=True
+                )
+                st.subheader("Decision Tree Visualization")
+                st.graphviz_chart(dot)
+
+            # RANDOM FOREST FEATURE IMPORTANCE (CLASSIFIER)
+            if algorithm == "Random Forest Classifier":
+                importances = model.feature_importances_
+                sorted_idx = np.argsort(importances)[::-1]
+
+                fig, ax = plt.subplots(figsize=(10,6))
+                ax.bar([feature_cols[i] for i in sorted_idx], importances[sorted_idx])
+                ax.set_title("Random Forest Feature Importance")
+                ax.set_ylabel("Importance Score")
+                plt.xticks(rotation=45)
+                st.pyplot(fig)
