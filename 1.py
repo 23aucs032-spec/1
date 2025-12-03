@@ -43,7 +43,6 @@ if model_type == "Regression":
     test_size_display = st.sidebar.slider("Test Size (%)", 10, 50)
     test_size = test_size_display / 100
 
-    # User-controlled max depth
     if algorithm in ["Decision Tree Regressor", "Random Forest Regressor"]:
         max_depth = st.sidebar.number_input("Max Depth", 1, 50, 5)
 
@@ -57,7 +56,6 @@ elif model_type == "Classification":
     test_size_display = st.sidebar.slider("Test Size (%)", 10, 50)
     test_size = test_size_display / 100
 
-    # User-controlled max depth
     if algorithm in ["Decision Tree Classifier", "Random Forest Classifier"]:
         max_depth = st.sidebar.number_input("Max Depth", 1, 50, 5)
 
@@ -104,15 +102,13 @@ if uploaded_file:
 
     feature_cols = st.multiselect("Select Feature Columns (X)", df.columns)
 
-    # Label column for regression & classification
     if model_type != "Clustering":
         label_col = st.selectbox("Select Label Column (Y)", df.columns)
     else:
         label_col = None
         n_clusters = st.number_input("Clusters", 1, 20, 3)
 
-
-    # Run Button Center
+    # Run Button
     col1, col2, col3 = st.columns([1,2,1])
     with col2:
         run_model = st.button("Run Model")
@@ -132,7 +128,6 @@ if uploaded_file:
             st.stop()
 
         X = df[feature_cols]
-
 
         # ----------------------------------------------------
         # CLUSTERING
@@ -169,7 +164,6 @@ if uploaded_file:
                 X, y, test_size=test_size, random_state=42
             )
 
-            # Model selection
             if algorithm == "Linear Regression":
                 model = LinearRegression()
             elif algorithm == "Random Forest Regressor":
@@ -191,20 +185,11 @@ if uploaded_file:
             st.write(f"### MSE: {mse}")
             st.write(f"### R² Score: {r2}")
 
-            # Scatter Plot
             fig, ax = plt.subplots(figsize=(8,6))
             ax.scatter(y_test, y_pred)
             ax.set_xlabel("Actual")
             ax.set_ylabel("Predicted")
             st.pyplot(fig)
-
-            # Feature Importance (Random Forest Only)
-            if algorithm == "Random Forest Regressor":
-                importances = model.feature_importances_
-                fig, ax = plt.subplots(figsize=(8,6))
-                ax.barh(feature_cols, importances)
-                ax.set_title("Feature Importance")
-                st.pyplot(fig)
 
 
         # ----------------------------------------------------
@@ -214,16 +199,15 @@ if uploaded_file:
 
             y = df[label_col]
 
-            # Convert continuous to classes if needed
             if y.dtype in ["int64", "float64"] and y.nunique() > 10:
                 y = pd.qcut(y, q=4, labels=[0,1,2,3])
                 y = y.astype(int)
+                st.info("Label converted into 4 classes using qcut.")
 
             X_train, X_test, y_train, y_test = train_test_split(
                 X, y, test_size=test_size, random_state=42
             )
 
-            # Model selection
             if algorithm == "Logistic Regression":
                 model = LogisticRegression(max_iter=500)
             elif algorithm == "Random Forest Classifier":
@@ -242,17 +226,7 @@ if uploaded_file:
             st.success("Classification Completed!")
             st.write(f"### Accuracy: {acc}")
 
-            # Confusion Matrix
             cm = confusion_matrix(y_test, y_pred)
             fig, ax = plt.subplots(figsize=(8,6))
             sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=ax)
             st.pyplot(fig)
-
-            # Feature Importance (Random Forest Only)
-            if algorithm == "Random Forest Classifier":
-                importances = model.feature_importances_
-                fig, ax = plt.subplots(figsize=(8,6))
-                ax.barh(feature_cols, importances)
-                ax.set_title("Feature Importance")
-                st.pyplot(fig)
-
