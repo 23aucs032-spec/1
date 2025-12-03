@@ -16,51 +16,55 @@ import seaborn as sns
 
 from sklearn.preprocessing import LabelEncoder
 
-# ---------------------------------------------
-# PAGE CONFIG
-# ---------------------------------------------
-st.set_page_config(page_title="Streamlit App", layout="wide")
 
-# ---------------------------------------------
-# SIDEBAR SETTINGS
-# ---------------------------------------------
+st.set_page_config(page_title="streamlit", layout="wide")
+
 st.sidebar.title("Model Type")
 
 model_type = st.sidebar.selectbox(
-    "Model Type",
+    "Select Model Type",
     ["Regression", "Classification", "Clustering"]
 )
 
 if model_type == "Regression":
     algorithm = st.sidebar.selectbox(
-        "Algorithms",
+        "Regression Algorithm",
         ["Linear Regression", "Random Forest Regressor", "Support Vector Regressor",
          "Decision Tree Regressor", "KNN Regressor"]
     )
-    test_size_display = st.sidebar.slider("Test Size (10 - 50%)", 10, 50)
+    test_size_display = st.sidebar.slider("Test Size (%)", 10, 50)
     test_size = test_size_display / 100
+
+    if algorithm == "Decision Tree Regressor":
+        max_depth = st.sidebar.number_input("Max Depth", 1, 50, 5)
+    else:
+        max_depth = None
 
 elif model_type == "Classification":
     algorithm = st.sidebar.selectbox(
-        "Algorithms",
+        "Classification Algorithm",
         ["Logistic Regression", "Random Forest Classifier", "Support Vector Classifier",
          "Decision Tree Classifier", "KNN Classifier"]
     )
-    test_size_display = st.sidebar.slider("Test Size (10 - 50%)", 10, 50)
+    test_size_display = st.sidebar.slider("Test Size (%)", 10, 50)
     test_size = test_size_display / 100
+
+    if algorithm == "Decision Tree Classifier":
+        max_depth = st.sidebar.number_input("Max Depth", 1, 50, 5)
+    else:
+        max_depth = None
 
 else:
     algorithm = st.sidebar.selectbox(
-        "Algorithms",
+        "Clustering Algorithm",
         ["K-Means Clustering", "Agglomerative Clustering"]
     )
     test_size = None
+    max_depth = None
 
-# ---------------------------------------------
-# MAIN UI
-# ---------------------------------------------
+
 st.title("Machine Learning Platform")
-st.subheader(f"{algorithm}")
+st.subheader(f" {algorithm}")
 
 uploaded_file = st.file_uploader("Upload CSV File", type=["csv"])
 
@@ -68,51 +72,46 @@ if uploaded_file:
 
     df = pd.read_csv(uploaded_file)
 
-    # ❗ Auto-drop columns that cause ML errors
-    drop_columns = ["Name", "Ticket", "Cabin"]
-    df = df.drop(columns=[c for c in drop_columns if c in df.columns], errors='ignore')
+    df = df.drop(columns=[c for c in ["Name", "Cabin", "Ticket"] if c in df.columns],
+                 errors="ignore")
 
-    # ❗ Fill missing numeric values
-    numeric_cols = df.select_dtypes(include=['int64', 'float64']).columns
+    numeric_cols = df.select_dtypes(include=["int64", "float64"]).columns
     df[numeric_cols] = df[numeric_cols].fillna(df[numeric_cols].median())
 
-    # ❗ Convert categorical → numeric using LabelEncoder
     labelencoder = LabelEncoder()
-    cat_cols = df.select_dtypes(include=['object']).columns
+    cat_cols = df.select_dtypes(include=["object"]).columns
     for col in cat_cols:
         df[col] = labelencoder.fit_transform(df[col].astype(str))
 
-    st.write("### Cleaned & Processed Data")
+    st.write("Processed Data")
     st.dataframe(df)
 
-    feature_cols = st.multiselect("Select Features", df.columns)
+    feature_cols = st.multiselect("Select Feature Columns (X)", df.columns)
 
     if model_type != "Clustering":
-        label_col = st.selectbox("Select Label Column", df.columns)
+        label_col = st.selectbox("Select Label Column (Y)", df.columns)
     else:
         label_col = None
-        n_clusters = st.number_input("Number of Clusters", 1, 20, 3)
+        n_clusters = st.number_input("Clusters", 1, 20, 3)
 
-    col_left, col_mid, col_right = st.columns([1,2,1])
-    with col_mid:
-        submit_clicked = st.button("Submit")
+    col1, col2, col3 = st.columns([1,2,1])
+    with col2:
+        run_model = st.button("Run Model")
 
-    if submit_clicked:
+    if run_model:
 
         if len(feature_cols) < 1:
             st.error("Select at least one feature!")
             st.stop()
 
         if model_type != "Clustering" and label_col in feature_cols:
-            st.error("Label column cannot be a feature!")
+            st.error("Label column cannot be used as a feature.")
             st.stop()
 
         X = df[feature_cols]
 
-        # ============================================================
-        # CLUSTERING
-        # ============================================================
         if model_type == "Clustering":
+
             if algorithm == "K-Means Clustering":
                 model = KMeans(n_clusters=n_clusters, random_state=42)
             else:
@@ -121,18 +120,15 @@ if uploaded_file:
             clusters = model.fit_predict(X)
             df["Cluster"] = clusters
 
-            st.success("Clustering Completed!")
+            st.success("Clustering Completed Successfully!")
 
             if len(feature_cols) >= 2:
                 fig, ax = plt.subplots(figsize=(8,6))
                 ax.scatter(X.iloc[:,0], X.iloc[:,1], c=clusters)
                 st.pyplot(fig)
             else:
-                st.warning("Select at least 2 features for visualization.")
+                st.warning("Select at least 2 features to plot clusters.")
 
-        # ============================================================
-        # REGRESSION
-        # ============================================================
         elif model_type == "Regression":
 
             y = df[label_col]
@@ -148,7 +144,7 @@ if uploaded_file:
             elif algorithm == "Support Vector Regressor":
                 model = SVR()
             elif algorithm == "Decision Tree Regressor":
-                model = DecisionTreeRegressor()
+                model = DecisionTreeRegressor(max_depth=max_depth)
             else:
                 model = KNeighborsRegressor()
 
@@ -158,31 +154,62 @@ if uploaded_file:
             mse = mean_squared_error(y_test, y_pred)
             r2 = r2_score(y_test, y_pred)
 
-            st.write(f"**MSE:** {mse}")
-            st.write(f"**R² Score:** {r2}")
+            st.success("Regression Model Trained!")
+            st.write(f"### MSE: {mse}")
+            st.write(f"### R² Score: {r2}")
 
             fig, ax = plt.subplots(figsize=(8,6))
             ax.scatter(y_test, y_pred)
+            ax.set_xlabel("Actual")
+            ax.set_ylabel("Predicted")
             st.pyplot(fig)
 
-        # ============================================================
-        # CLASSIFICATION
-        # ============================================================
         else:
+
             y = df[label_col]
+
+            if y.dtype in ["int64", "float64"]:
+                desired_bins = 4  
+                unique_vals = y.nunique()
+
+                if unique_vals > desired_bins:
+                    try:
+                        y_binned = pd.qcut(y, q=desired_bins, labels=list(range(desired_bins)))
+                    except ValueError:
+                        y_binned = pd.qcut(y, q=desired_bins, labels=list(range(desired_bins)), duplicates='drop')
+                        y_binned = pd.Series(y_binned).cat.codes
+                    else:
+                        if hasattr(y_binned, "astype"):
+                            y_binned = y_binned.astype(int)
+                    y = pd.Series(y_binned, index=y.index)
+                    st.info(f"Label was continuous ({unique_vals} unique values) — converted to {y.nunique()} classes using qcut.")
+
+                    unique_sorted = sorted(y.unique())
+                    mapping = {val: idx for idx, val in enumerate(unique_sorted)}
+                    y_mapped = y.map(mapping)
+                    y = pd.Series(y_mapped, index=y.index)
+                    st.info(f"Label had {unique_vals} unique values — using direct mapping to classes: {mapping}.")
+
+            if y.dtype == 'object' or str(y.dtype).startswith('category'):
+                y = LabelEncoder().fit_transform(y.astype(str))
+                y = pd.Series(y, index=df.index)
+
+            if pd.Series(y).nunique() < 2:
+                st.error("Label has fewer than 2 classes — cannot perform classification.")
+                st.stop()
 
             X_train, X_test, y_train, y_test = train_test_split(
                 X, y, test_size=test_size, random_state=42
             )
 
             if algorithm == "Logistic Regression":
-                model = LogisticRegression(max_iter=200)
+                model = LogisticRegression(max_iter=300)
             elif algorithm == "Random Forest Classifier":
                 model = RandomForestClassifier()
             elif algorithm == "Support Vector Classifier":
                 model = SVC()
             elif algorithm == "Decision Tree Classifier":
-                model = DecisionTreeClassifier()
+                model = DecisionTreeClassifier(max_depth=max_depth)
             else:
                 model = KNeighborsClassifier()
 
@@ -190,7 +217,8 @@ if uploaded_file:
             y_pred = model.predict(X_test)
 
             acc = accuracy_score(y_test, y_pred)
-            st.write(f"**Accuracy:** {acc}")
+            st.success("Classification Model Trained!")
+            st.write(f"### Accuracy: {acc}")
 
             cm = confusion_matrix(y_test, y_pred)
             fig, ax = plt.subplots(figsize=(8,6))
