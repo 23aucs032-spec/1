@@ -218,7 +218,6 @@ if uploaded_file:
             if y.dtype in ["int64", "float64"] and y.nunique() > 10:
                 y = pd.qcut(y, q=4, labels=[0,1,2,3])
                 y = y.astype(int)
-                st.info("Label converted into 4 classes using qcut.")
 
             X_train, X_test, y_train, y_test = train_test_split(
                 X, y, test_size=test_size, random_state=42
@@ -256,3 +255,4 @@ if uploaded_file:
                 ax.barh(feature_cols, importances)
                 ax.set_title("Feature Importance")
                 st.pyplot(fig)
+
