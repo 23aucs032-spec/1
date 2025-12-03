@@ -149,8 +149,6 @@ if uploaded_file:
                 fig, ax = plt.subplots(figsize=(8,6))
                 ax.scatter(X.iloc[:,0], X.iloc[:,1], c=clusters)
                 st.pyplot(fig)
-            else:
-                st.warning("Need at least 2 features to plot clusters.")
 
 
         # ----------------------------------------------------
@@ -230,3 +228,4 @@ if uploaded_file:
             fig, ax = plt.subplots(figsize=(8,6))
             sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=ax)
             st.pyplot(fig)
+
