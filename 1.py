@@ -149,6 +149,8 @@ if uploaded_file:
                 fig, ax = plt.subplots(figsize=(8,6))
                 ax.scatter(X.iloc[:,0], X.iloc[:,1], c=clusters)
                 st.pyplot(fig)
+            else:
+                st.warning("Need at least 2 features to plot clusters.")
 
 
         # ----------------------------------------------------
@@ -200,7 +202,6 @@ if uploaded_file:
             if y.dtype in ["int64", "float64"] and y.nunique() > 10:
                 y = pd.qcut(y, q=4, labels=[0,1,2,3])
                 y = y.astype(int)
-                st.info("Label converted into 4 classes using qcut.")
 
             X_train, X_test, y_train, y_test = train_test_split(
                 X, y, test_size=test_size, random_state=42
@@ -228,4 +229,3 @@ if uploaded_file:
             fig, ax = plt.subplots(figsize=(8,6))
             sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=ax)
             st.pyplot(fig)
-
